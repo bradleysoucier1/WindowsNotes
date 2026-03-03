@@ -1,0 +1,101 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Notepad</title>
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <main class="desktop">
+      <section class="notepad-window" aria-label="Windows 10 style notepad window">
+        <header class="title-bar">
+          <div class="title-left">
+            <span class="notepad-icon" aria-hidden="true">🗒️</span>
+            <h1 id="window-title">Untitled - Notepad</h1>
+          </div>
+          <div class="window-controls" aria-hidden="true">
+            <button type="button" class="control">—</button>
+            <button type="button" class="control">▢</button>
+            <button type="button" class="control close">✕</button>
+          </div>
+        </header>
+
+        <nav class="menu-bar" aria-label="Menu">
+          <div class="menu-item">
+            <button type="button" class="menu-trigger" data-menu="file">File</button>
+            <ul class="dropdown-menu" id="file-menu" role="menu">
+              <li role="menuitem" data-action="new">New</li>
+              <li role="menuitem" data-action="open">Open...</li>
+              <li role="menuitem" data-action="save">Save</li>
+              <li role="menuitem" data-action="save-as">Save As...</li>
+              <li class="separator" aria-hidden="true"></li>
+              <li role="menuitem" data-action="print">Print...</li>
+              <li class="separator" aria-hidden="true"></li>
+              <li role="menuitem" data-action="exit">Exit</li>
+            </ul>
+          </div>
+
+          <div class="menu-item">
+            <button type="button" class="menu-trigger" data-menu="edit">Edit</button>
+            <ul class="dropdown-menu" id="edit-menu" role="menu">
+              <li role="menuitem" data-action="undo">Undo</li>
+              <li role="menuitem" data-action="redo">Redo</li>
+              <li class="separator" aria-hidden="true"></li>
+              <li role="menuitem" data-action="cut">Cut</li>
+              <li role="menuitem" data-action="copy">Copy</li>
+              <li role="menuitem" data-action="paste">Paste</li>
+              <li role="menuitem" data-action="delete">Delete</li>
+              <li class="separator" aria-hidden="true"></li>
+              <li role="menuitem" data-action="select-all">Select All</li>
+              <li role="menuitem" data-action="time-date">Time/Date</li>
+            </ul>
+          </div>
+
+          <div class="menu-item">
+            <button type="button" class="menu-trigger" data-menu="format">Format</button>
+            <ul class="dropdown-menu" id="format-menu" role="menu">
+              <li role="menuitem" data-action="word-wrap">Word Wrap <span id="word-wrap-state">✓</span></li>
+              <li role="menuitem" data-action="font-size-up">Font Size +</li>
+              <li role="menuitem" data-action="font-size-down">Font Size -</li>
+            </ul>
+          </div>
+
+          <div class="menu-item">
+            <button type="button" class="menu-trigger" data-menu="view">View</button>
+            <ul class="dropdown-menu" id="view-menu" role="menu">
+              <li role="menuitem" data-action="zoom-in">Zoom In</li>
+              <li role="menuitem" data-action="zoom-out">Zoom Out</li>
+              <li role="menuitem" data-action="zoom-reset">Restore Default Zoom</li>
+              <li class="separator" aria-hidden="true"></li>
+              <li role="menuitem" data-action="status-bar">Status Bar <span id="status-bar-state">✓</span></li>
+            </ul>
+          </div>
+
+          <div class="menu-item">
+            <button type="button" class="menu-trigger" data-menu="help">Help</button>
+            <ul class="dropdown-menu" id="help-menu" role="menu">
+              <li role="menuitem" data-action="view-help">View Help</li>
+              <li role="menuitem" data-action="about">About Notepad</li>
+            </ul>
+          </div>
+        </nav>
+
+        <label class="sr-only" for="editor">Notepad text editor</label>
+        <textarea id="editor" spellcheck="false" autofocus>Windows 10 styled notepad.
+
+Type your notes here...</textarea>
+
+        <footer class="status-bar" id="status-bar">
+          <span id="line-col">Ln 1, Col 1</span>
+          <span id="encoding">UTF-8</span>
+          <span id="zoom">100%</span>
+          <span id="eol">Windows (CRLF)</span>
+        </footer>
+      </section>
+    </main>
+
+    <input class="sr-only" type="file" id="file-input" accept=".txt,text/plain" />
+    <script src="script.js"></script>
+  </body>
+</html>
