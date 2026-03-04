@@ -4,12 +4,14 @@ const zoomLabel = document.getElementById("zoom");
 const statusBar = document.getElementById("status-bar");
 const statusBarState = document.getElementById("status-bar-state");
 const wordWrapState = document.getElementById("word-wrap-state");
+const darkModeState = document.getElementById("dark-mode-state");
 const windowTitle = document.getElementById("window-title");
 const fileInput = document.getElementById("file-input");
 
 let zoomLevel = 100;
 let hasSaved = false;
 let currentFileName = "Untitled";
+let lastSearchTerm = "";
 
 function updateTitle() {
   windowTitle.textContent = `${currentFileName} - Notepad`;
@@ -38,6 +40,20 @@ function downloadText(filename, text) {
   URL.revokeObjectURL(url);
 }
 
+function findNextOccurrence(term, fromIndex = editor.selectionEnd) {
+  const text = editor.value;
+  const index = text.toLowerCase().indexOf(term.toLowerCase(), fromIndex);
+  if (index === -1) return false;
+  editor.focus();
+  editor.setSelectionRange(index, index + term.length);
+  updateCursorInfo();
+  return true;
+}
+
+function setFontFamily(name) {
+  editor.style.fontFamily = name;
+}
+
 function performAction(action) {
   switch (action) {
     case "new":
@@ -47,6 +63,9 @@ function performAction(action) {
       hasSaved = false;
       updateTitle();
       updateCursorInfo();
+      break;
+    case "new-window":
+      window.open(window.location.href, "_blank");
       break;
     case "open":
       fileInput.click();
@@ -67,6 +86,9 @@ function performAction(action) {
       downloadText(`${currentFileName}.txt`, editor.value);
       break;
     }
+    case "page-setup":
+      alert("Page Setup is not supported in-browser. Use Print settings in your browser.");
+      break;
     case "print":
       window.print();
       break;
@@ -81,6 +103,46 @@ function performAction(action) {
     case "delete":
       document.execCommand(action);
       break;
+    case "find": {
+      const term = prompt("Find:", lastSearchTerm);
+      if (!term) return;
+      lastSearchTerm = term;
+      if (!findNextOccurrence(term, 0)) alert(`Cannot find \"${term}\"`);
+      break;
+    }
+    case "find-next":
+      if (!lastSearchTerm) {
+        alert("Use Find first to set a search term.");
+        return;
+      }
+      if (!findNextOccurrence(lastSearchTerm, editor.selectionEnd)) {
+        if (!findNextOccurrence(lastSearchTerm, 0)) alert(`Cannot find \"${lastSearchTerm}\"`);
+      }
+      break;
+    case "replace": {
+      const findText = prompt("Find what:", lastSearchTerm);
+      if (!findText) return;
+      const replaceWith = prompt("Replace with:", "");
+      if (replaceWith === null) return;
+      lastSearchTerm = findText;
+      const regex = new RegExp(findText.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"), "g");
+      editor.value = editor.value.replace(regex, replaceWith);
+      updateCursorInfo();
+      break;
+    }
+    case "go-to": {
+      const value = prompt("Go to line:", "1");
+      if (!value) return;
+      const targetLine = Number.parseInt(value, 10);
+      if (Number.isNaN(targetLine) || targetLine < 1) return;
+      const lines = editor.value.split("\n");
+      let index = 0;
+      for (let i = 0; i < Math.min(targetLine - 1, lines.length - 1); i += 1) index += lines[i].length + 1;
+      editor.focus();
+      editor.setSelectionRange(index, index);
+      updateCursorInfo();
+      break;
+    }
     case "select-all":
       editor.select();
       updateCursorInfo();
@@ -107,6 +169,16 @@ function performAction(action) {
       editor.style.fontSize = `${Math.max(size - 1, 9)}px`;
       break;
     }
+    case "font-reset":
+      editor.style.fontSize = "1rem";
+      setFontFamily('"Consolas", "Lucida Console", monospace');
+      break;
+    case "font-family": {
+      const choice = prompt("Font family:", getComputedStyle(editor).fontFamily);
+      if (!choice) return;
+      setFontFamily(choice);
+      break;
+    }
     case "zoom-in":
       zoomLevel = Math.min(500, zoomLevel + 10);
       editor.style.zoom = `${zoomLevel}%`;
@@ -126,11 +198,18 @@ function performAction(action) {
       statusBar.classList.toggle("hidden");
       statusBarState.textContent = statusBar.classList.contains("hidden") ? "" : "✓";
       break;
+    case "toggle-dark-mode":
+      document.body.classList.toggle("dark");
+      darkModeState.textContent = document.body.classList.contains("dark") ? "✓" : "";
+      break;
     case "view-help":
       alert("Notepad Help\n\nUse File to open/save text files and Edit for basic editing commands.");
       break;
+    case "keyboard-shortcuts":
+      alert("Shortcuts\nCtrl+S Save\nCtrl+F Find\nCtrl+H Replace\nCtrl+A Select All");
+      break;
     case "about":
-      alert("Notepad\nWindows 10 styled web clone\nVersion 1.0");
+      alert("Notepad\nWindows 10 styled web clone\nVersion 1.1");
       break;
     default:
       break;
@@ -172,6 +251,21 @@ fileInput.addEventListener("change", (event) => {
   };
   reader.readAsText(file);
   fileInput.value = "";
+});
+
+document.addEventListener("keydown", (event) => {
+  if (!event.ctrlKey) return;
+  const key = event.key.toLowerCase();
+  if (key === "s") {
+    event.preventDefault();
+    performAction("save");
+  } else if (key === "f") {
+    event.preventDefault();
+    performAction("find");
+  } else if (key === "h") {
+    event.preventDefault();
+    performAction("replace");
+  }
 });
 
 editor.addEventListener("keyup", updateCursorInfo);
