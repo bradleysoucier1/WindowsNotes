@@ -7,11 +7,23 @@ const wordWrapState = document.getElementById("word-wrap-state");
 const darkModeState = document.getElementById("dark-mode-state");
 const windowTitle = document.getElementById("window-title");
 const fileInput = document.getElementById("file-input");
+const fontDialog = document.getElementById("font-dialog");
+const fontSearch = document.getElementById("font-search");
+const fontList = document.getElementById("font-list");
+const fontClose = document.getElementById("font-close");
+
+const fontOptions = [
+  "Consolas", "Courier New", "Lucida Console", "Segoe UI", "Arial", "Calibri", "Cambria", "Candara",
+  "Comic Sans MS", "Georgia", "Tahoma", "Times New Roman", "Trebuchet MS", "Verdana", "Impact",
+  "Palatino Linotype", "Garamond", "Book Antiqua", "Franklin Gothic Medium", "Century Gothic",
+  "Monaco", "Menlo", "Fira Code", "JetBrains Mono"
+];
 
 let zoomLevel = 100;
 let hasSaved = false;
 let currentFileName = "Untitled";
 let lastSearchTerm = "";
+let activeFont = "Consolas";
 
 function updateTitle() {
   windowTitle.textContent = `${currentFileName} - Notepad`;
@@ -21,9 +33,7 @@ function updateCursorInfo() {
   const caret = editor.selectionStart;
   const textUntilCaret = editor.value.slice(0, caret);
   const lines = textUntilCaret.split("\n");
-  const line = lines.length;
-  const column = lines[lines.length - 1].length + 1;
-  lineCol.textContent = `Ln ${line}, Col ${column}`;
+  lineCol.textContent = `Ln ${lines.length}, Col ${lines[lines.length - 1].length + 1}`;
 }
 
 function closeMenus() {
@@ -33,16 +43,15 @@ function closeMenus() {
 function downloadText(filename, text) {
   const blob = new Blob([text], { type: "text/plain;charset=utf-8" });
   const url = URL.createObjectURL(blob);
-  const a = document.createElement("a");
-  a.href = url;
-  a.download = filename;
-  a.click();
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = filename;
+  link.click();
   URL.revokeObjectURL(url);
 }
 
 function findNextOccurrence(term, fromIndex = editor.selectionEnd) {
-  const text = editor.value;
-  const index = text.toLowerCase().indexOf(term.toLowerCase(), fromIndex);
+  const index = editor.value.toLowerCase().indexOf(term.toLowerCase(), fromIndex);
   if (index === -1) return false;
   editor.focus();
   editor.setSelectionRange(index, index + term.length);
@@ -51,7 +60,47 @@ function findNextOccurrence(term, fromIndex = editor.selectionEnd) {
 }
 
 function setFontFamily(name) {
-  editor.style.fontFamily = name;
+  activeFont = name;
+  editor.style.fontFamily = `"${name}", "Segoe UI", monospace`;
+}
+
+function renderFontList(filterText = "") {
+  const query = filterText.trim().toLowerCase();
+  const filtered = fontOptions.filter((font) => font.toLowerCase().includes(query));
+
+  fontList.innerHTML = "";
+  filtered.forEach((font) => {
+    const btn = document.createElement("button");
+    btn.type = "button";
+    btn.className = `font-option${font === activeFont ? " active" : ""}`;
+    btn.dataset.font = font;
+    btn.style.fontFamily = `"${font}", sans-serif`;
+    btn.textContent = font;
+    btn.addEventListener("click", () => {
+      setFontFamily(font);
+      closeFontMenu();
+      editor.focus();
+    });
+    fontList.append(btn);
+  });
+
+  if (!filtered.length) {
+    const none = document.createElement("div");
+    none.className = "font-option";
+    none.textContent = "No fonts match your search.";
+    fontList.append(none);
+  }
+}
+
+function openFontMenu() {
+  renderFontList();
+  fontSearch.value = "";
+  fontDialog.classList.remove("hidden");
+  fontSearch.focus();
+}
+
+function closeFontMenu() {
+  fontDialog.classList.add("hidden");
 }
 
 function performAction(action) {
@@ -71,10 +120,7 @@ function performAction(action) {
       fileInput.click();
       break;
     case "save":
-      if (!hasSaved || currentFileName === "Untitled") {
-        performAction("save-as");
-        return;
-      }
+      if (!hasSaved || currentFileName === "Untitled") return performAction("save-as");
       downloadText(`${currentFileName}.txt`, editor.value);
       break;
     case "save-as": {
@@ -107,16 +153,13 @@ function performAction(action) {
       const term = prompt("Find:", lastSearchTerm);
       if (!term) return;
       lastSearchTerm = term;
-      if (!findNextOccurrence(term, 0)) alert(`Cannot find \"${term}\"`);
+      if (!findNextOccurrence(term, 0)) alert(`Cannot find "${term}"`);
       break;
     }
     case "find-next":
-      if (!lastSearchTerm) {
-        alert("Use Find first to set a search term.");
-        return;
-      }
-      if (!findNextOccurrence(lastSearchTerm, editor.selectionEnd)) {
-        if (!findNextOccurrence(lastSearchTerm, 0)) alert(`Cannot find \"${lastSearchTerm}\"`);
+      if (!lastSearchTerm) return alert("Use Find first to set a search term.");
+      if (!findNextOccurrence(lastSearchTerm, editor.selectionEnd) && !findNextOccurrence(lastSearchTerm, 0)) {
+        alert(`Cannot find "${lastSearchTerm}"`);
       }
       break;
     case "replace": {
@@ -125,15 +168,12 @@ function performAction(action) {
       const replaceWith = prompt("Replace with:", "");
       if (replaceWith === null) return;
       lastSearchTerm = findText;
-      const regex = new RegExp(findText.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"), "g");
-      editor.value = editor.value.replace(regex, replaceWith);
+      editor.value = editor.value.replace(new RegExp(findText.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"), "g"), replaceWith);
       updateCursorInfo();
       break;
     }
     case "go-to": {
-      const value = prompt("Go to line:", "1");
-      if (!value) return;
-      const targetLine = Number.parseInt(value, 10);
+      const targetLine = Number.parseInt(prompt("Go to line:", "1") || "", 10);
       if (Number.isNaN(targetLine) || targetLine < 1) return;
       const lines = editor.value.split("\n");
       let index = 0;
@@ -147,38 +187,27 @@ function performAction(action) {
       editor.select();
       updateCursorInfo();
       break;
-    case "time-date": {
-      const stamp = new Date().toLocaleString();
-      const start = editor.selectionStart;
-      const end = editor.selectionEnd;
-      editor.setRangeText(stamp, start, end, "end");
+    case "time-date":
+      editor.setRangeText(new Date().toLocaleString(), editor.selectionStart, editor.selectionEnd, "end");
       updateCursorInfo();
       break;
-    }
     case "word-wrap":
       editor.classList.toggle("no-wrap");
       wordWrapState.textContent = editor.classList.contains("no-wrap") ? "" : "✓";
       break;
-    case "font-size-up": {
-      const size = Number.parseFloat(getComputedStyle(editor).fontSize);
-      editor.style.fontSize = `${Math.min(size + 1, 40)}px`;
+    case "font-size-up":
+      editor.style.fontSize = `${Math.min(Number.parseFloat(getComputedStyle(editor).fontSize) + 1, 40)}px`;
       break;
-    }
-    case "font-size-down": {
-      const size = Number.parseFloat(getComputedStyle(editor).fontSize);
-      editor.style.fontSize = `${Math.max(size - 1, 9)}px`;
+    case "font-size-down":
+      editor.style.fontSize = `${Math.max(Number.parseFloat(getComputedStyle(editor).fontSize) - 1, 9)}px`;
       break;
-    }
     case "font-reset":
       editor.style.fontSize = "1rem";
-      setFontFamily('"Consolas", "Lucida Console", monospace');
+      setFontFamily("Consolas");
       break;
-    case "font-family": {
-      const choice = prompt("Font family:", getComputedStyle(editor).fontFamily);
-      if (!choice) return;
-      setFontFamily(choice);
+    case "font-menu":
+      openFontMenu();
       break;
-    }
     case "zoom-in":
       zoomLevel = Math.min(500, zoomLevel + 10);
       editor.style.zoom = `${zoomLevel}%`;
@@ -209,7 +238,7 @@ function performAction(action) {
       alert("Shortcuts\nCtrl+S Save\nCtrl+F Find\nCtrl+H Replace\nCtrl+A Select All");
       break;
     case "about":
-      alert("Notepad\nWindows 10 styled web clone\nVersion 1.1");
+      alert("Notepad\nWindows 10 styled web clone\nVersion 1.2");
       break;
     default:
       break;
@@ -229,7 +258,7 @@ document.querySelectorAll(".dropdown-menu li[data-action]").forEach((option) => 
   option.addEventListener("click", (event) => {
     performAction(event.currentTarget.dataset.action);
     closeMenus();
-    editor.focus();
+    if (event.currentTarget.dataset.action !== "font-menu") editor.focus();
   });
 });
 
@@ -237,23 +266,17 @@ document.addEventListener("click", (event) => {
   if (!event.target.closest(".menu-item")) closeMenus();
 });
 
-fileInput.addEventListener("change", (event) => {
-  const [file] = event.target.files;
-  if (!file) return;
-
-  const reader = new FileReader();
-  reader.onload = (readEvent) => {
-    editor.value = String(readEvent.target.result ?? "");
-    currentFileName = file.name.replace(/\.txt$/i, "") || "Untitled";
-    hasSaved = true;
-    updateTitle();
-    updateCursorInfo();
-  };
-  reader.readAsText(file);
-  fileInput.value = "";
+fontSearch.addEventListener("input", (event) => renderFontList(event.target.value));
+fontClose.addEventListener("click", closeFontMenu);
+fontDialog.addEventListener("click", (event) => {
+  if (event.target === fontDialog) closeFontMenu();
 });
 
 document.addEventListener("keydown", (event) => {
+  if (event.key === "Escape" && !fontDialog.classList.contains("hidden")) {
+    closeFontMenu();
+    editor.focus();
+  }
   if (!event.ctrlKey) return;
   const key = event.key.toLowerCase();
   if (key === "s") {
@@ -268,9 +291,25 @@ document.addEventListener("keydown", (event) => {
   }
 });
 
+fileInput.addEventListener("change", (event) => {
+  const [file] = event.target.files;
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = (readEvent) => {
+    editor.value = String(readEvent.target.result ?? "");
+    currentFileName = file.name.replace(/\.txt$/i, "") || "Untitled";
+    hasSaved = true;
+    updateTitle();
+    updateCursorInfo();
+  };
+  reader.readAsText(file);
+  fileInput.value = "";
+});
+
 editor.addEventListener("keyup", updateCursorInfo);
 editor.addEventListener("click", updateCursorInfo);
 editor.addEventListener("input", updateCursorInfo);
 
+setFontFamily("Consolas");
 updateTitle();
 updateCursorInfo();
