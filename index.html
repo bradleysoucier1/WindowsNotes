@@ -56,6 +56,17 @@ Type your notes here...</textarea>
       </div>
     </section>
 
+    <section id="edit-dialog" class="edit-dialog hidden" aria-label="Editor action dialog">
+      <div class="edit-panel">
+        <header><h2 id="edit-title">Edit Action</h2><button id="edit-close" type="button">✕</button></header>
+        <div id="edit-fields" class="edit-fields"></div>
+        <div class="edit-actions">
+          <button id="edit-cancel" type="button">Cancel</button>
+          <button id="edit-confirm" type="button">OK</button>
+        </div>
+      </div>
+    </section>
+
     <ul id="context-menu" class="context-menu hidden" role="menu" aria-label="Editor context menu">
       <li data-action="undo">Undo</li>
       <li data-action="redo">Redo</li>

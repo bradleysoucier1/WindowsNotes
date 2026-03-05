@@ -15,6 +15,12 @@ const infoDialog = document.getElementById("info-dialog");
 const infoTitle = document.getElementById("info-title");
 const infoBody = document.getElementById("info-body");
 const infoClose = document.getElementById("info-close");
+const editDialog = document.getElementById("edit-dialog");
+const editTitle = document.getElementById("edit-title");
+const editFields = document.getElementById("edit-fields");
+const editClose = document.getElementById("edit-close");
+const editCancel = document.getElementById("edit-cancel");
+const editConfirm = document.getElementById("edit-confirm");
 const contextMenu = document.getElementById("context-menu");
 const mobileContextTrigger = document.getElementById("mobile-context-trigger");
 
@@ -34,6 +40,7 @@ let currentFileName = "Untitled";
 let lastSearchTerm = "";
 let activeFont = "Consolas";
 let touchTimer;
+let editSubmitHandler = null;
 
 function updateTitle() {
   windowTitle.textContent = `${currentFileName} - Notepad`;
@@ -61,6 +68,40 @@ function openInfoDialog(title, lines) {
 
 function closeInfoDialog() {
   infoDialog.classList.add("hidden");
+}
+
+function openEditDialog(title, fields, onConfirm) {
+  editTitle.textContent = title;
+  editFields.innerHTML = "";
+
+  fields.forEach((field) => {
+    const label = document.createElement("label");
+    label.textContent = field.label;
+    const input = document.createElement("input");
+    input.type = field.type || "text";
+    input.id = field.id;
+    input.value = field.value || "";
+    input.placeholder = field.placeholder || "";
+    label.append(input);
+    editFields.append(label);
+  });
+
+  editSubmitHandler = () => {
+    const values = {};
+    fields.forEach((field) => {
+      values[field.id] = document.getElementById(field.id).value;
+    });
+    onConfirm(values);
+  };
+
+  editDialog.classList.remove("hidden");
+  const firstInput = editFields.querySelector("input");
+  if (firstInput) firstInput.focus();
+}
+
+function closeEditDialog() {
+  editDialog.classList.add("hidden");
+  editSubmitHandler = null;
 }
 
 function downloadText(filename, text) {
@@ -182,43 +223,63 @@ function performAction(action) {
     case "delete":
       document.execCommand(action);
       break;
-    case "find": {
-      const term = prompt("Find:", lastSearchTerm);
-      if (!term) return;
-      lastSearchTerm = term;
-      if (!findNextOccurrence(term, 0)) openInfoDialog("Find", [`Cannot find \"${term}\"`]);
+    case "find":
+      openEditDialog("Find", [{ id: "find-term", label: "Find what", value: lastSearchTerm }], (values) => {
+        const term = values["find-term"].trim();
+        if (!term) return;
+        lastSearchTerm = term;
+        closeEditDialog();
+        if (!findNextOccurrence(term, 0)) openInfoDialog("Find", [`Cannot find \"${term}\"`]);
+      });
       break;
-    }
     case "find-next":
       if (!lastSearchTerm) {
-        openInfoDialog("Find Next", ["Use Find first to set a search term."]);
+        openEditDialog("Find Next", [{ id: "findnext-term", label: "Find what", value: "" }], (values) => {
+          const term = values["findnext-term"].trim();
+          if (!term) return;
+          lastSearchTerm = term;
+          closeEditDialog();
+          if (!findNextOccurrence(lastSearchTerm, editor.selectionEnd) && !findNextOccurrence(lastSearchTerm, 0)) {
+            openInfoDialog("Find Next", [`Cannot find \"${lastSearchTerm}\"`]);
+          }
+        });
         return;
       }
       if (!findNextOccurrence(lastSearchTerm, editor.selectionEnd) && !findNextOccurrence(lastSearchTerm, 0)) {
         openInfoDialog("Find Next", [`Cannot find \"${lastSearchTerm}\"`]);
       }
       break;
-    case "replace": {
-      const findText = prompt("Find what:", lastSearchTerm);
-      if (!findText) return;
-      const replaceWith = prompt("Replace with:", "");
-      if (replaceWith === null) return;
-      lastSearchTerm = findText;
-      editor.value = editor.value.replace(new RegExp(findText.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"), "g"), replaceWith);
-      updateCursorInfo();
+    case "replace":
+      openEditDialog(
+        "Replace",
+        [
+          { id: "replace-find", label: "Find what", value: lastSearchTerm },
+          { id: "replace-with", label: "Replace with", value: "" },
+        ],
+        (values) => {
+          const findText = values["replace-find"].trim();
+          if (!findText) return;
+          const replaceWith = values["replace-with"];
+          lastSearchTerm = findText;
+          editor.value = editor.value.replace(new RegExp(findText.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"), "g"), replaceWith);
+          closeEditDialog();
+          updateCursorInfo();
+        },
+      );
       break;
-    }
-    case "go-to": {
-      const targetLine = Number.parseInt(prompt("Go to line:", "1") || "", 10);
-      if (Number.isNaN(targetLine) || targetLine < 1) return;
-      const lines = editor.value.split("\n");
-      let index = 0;
-      for (let i = 0; i < Math.min(targetLine - 1, lines.length - 1); i += 1) index += lines[i].length + 1;
-      editor.focus();
-      editor.setSelectionRange(index, index);
-      updateCursorInfo();
+    case "go-to":
+      openEditDialog("Go To", [{ id: "goto-line", label: "Line number", type: "number", value: "1" }], (values) => {
+        const targetLine = Number.parseInt(values["goto-line"], 10);
+        if (Number.isNaN(targetLine) || targetLine < 1) return;
+        closeEditDialog();
+        const lines = editor.value.split("\n");
+        let index = 0;
+        for (let i = 0; i < Math.min(targetLine - 1, lines.length - 1); i += 1) index += lines[i].length + 1;
+        editor.focus();
+        editor.setSelectionRange(index, index);
+        updateCursorInfo();
+      });
       break;
-    }
     case "select-all":
       editor.select();
       updateCursorInfo();
@@ -292,14 +353,11 @@ function performAction(action) {
         "- Added mobile long-press and menu-button context access",
         "- Added dark mode, zoom, and status bar toggles",
         "- Added custom Help popups",
+        "- Added custom Find / Find Next / Replace / Go To dialogs",
       ]);
       break;
     case "about":
-      openInfoDialog("About Notepad", [
-        "Notepad",
-        "Windows 10 styled web clone",
-        "Version 1.4",
-      ]);
+      openInfoDialog("About Notepad", ["Notepad", "Windows 10 styled web clone", "Version 1.5"]);
       break;
     default:
       break;
@@ -336,10 +394,14 @@ editor.addEventListener("contextmenu", (event) => {
   showContextMenu(event.clientX, event.clientY);
 });
 
-editor.addEventListener("touchstart", (event) => {
-  const touch = event.touches[0];
-  touchTimer = setTimeout(() => showContextMenu(touch.clientX, touch.clientY), 450);
-}, { passive: true });
+editor.addEventListener(
+  "touchstart",
+  (event) => {
+    const touch = event.touches[0];
+    touchTimer = setTimeout(() => showContextMenu(touch.clientX, touch.clientY), 450);
+  },
+  { passive: true },
+);
 editor.addEventListener("touchend", () => clearTimeout(touchTimer));
 editor.addEventListener("touchmove", () => clearTimeout(touchTimer));
 mobileContextTrigger.addEventListener("click", () => showContextMenu(window.innerWidth - 210, window.innerHeight - 260));
@@ -362,12 +424,40 @@ infoDialog.addEventListener("click", (event) => {
   }
 });
 
+editClose.addEventListener("click", () => {
+  closeEditDialog();
+  editor.focus();
+});
+
+editCancel.addEventListener("click", () => {
+  closeEditDialog();
+  editor.focus();
+});
+
+editConfirm.addEventListener("click", () => {
+  if (editSubmitHandler) editSubmitHandler();
+});
+
+editDialog.addEventListener("click", (event) => {
+  if (event.target === editDialog) {
+    closeEditDialog();
+    editor.focus();
+  }
+});
+
 document.addEventListener("keydown", (event) => {
   if (event.key === "Escape") {
     closeFontMenu();
     closeInfoDialog();
+    closeEditDialog();
     closeContextMenu();
     editor.focus();
+  }
+
+  if (event.key === "Enter" && !editDialog.classList.contains("hidden") && event.target.tagName === "INPUT") {
+    event.preventDefault();
+    if (editSubmitHandler) editSubmitHandler();
+    return;
   }
 
   if (!event.ctrlKey) return;
