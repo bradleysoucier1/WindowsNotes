@@ -175,6 +175,7 @@ function performAction(action) {
     case "toggle-dark-mode": document.body.classList.toggle("dark"); darkModeState.textContent = document.body.classList.contains("dark") ? "✓" : ""; break;
     case "view-help": alert("Notepad Help\n\nUse File to open/save text files and Edit for basic editing commands."); break;
     case "keyboard-shortcuts": alert("Shortcuts\nCtrl+S Save\nCtrl+F Find\nCtrl+H Replace\nRight click / long press: context menu"); break;
+    case "updates": alert("Updates\n\n- Added functional top menu actions\n- Added searchable font menu with many fonts\n- Added desktop right-click context menu\n- Added mobile long-press and menu-button context access\n- Added dark mode, zoom, and status bar toggles"); break;
     case "about": alert("Notepad\nWindows 10 styled web clone\nVersion 1.3"); break;
     default: break;
   }
