@@ -1,0 +1,25 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Note Editor</title>
+    <link rel="stylesheet" href="../styles.css" />
+  </head>
+  <body>
+    <main class="page note-page">
+      <section class="panel editor-panel">
+        <div class="row space-between">
+          <a href="/" class="btn">← Back to Notes</a>
+          <button id="delete-note" class="btn danger" type="button">Delete</button>
+        </div>
+
+        <input id="note-title" class="note-title" type="text" placeholder="Untitled" />
+        <textarea id="note-body" class="note-editor" placeholder="Start typing..."></textarea>
+        <p id="save-status" class="message">Loading...</p>
+      </section>
+    </main>
+
+    <script type="module" src="note.js"></script>
+  </body>
+</html>
