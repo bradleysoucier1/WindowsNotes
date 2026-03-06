@@ -1,49 +1,54 @@
 import { auth, db } from "../firebase.js";
 import { onAuthStateChanged } from "https://www.gstatic.com/firebasejs/12.10.0/firebase-auth.js";
-import {
-  deleteDoc,
-  doc,
-  getDoc,
-  serverTimestamp,
-  updateDoc,
-} from "https://www.gstatic.com/firebasejs/12.10.0/firebase-firestore.js";
+import { deleteDoc, doc, getDoc, serverTimestamp, updateDoc } from "https://www.gstatic.com/firebasejs/12.10.0/firebase-firestore.js";
 
 const params = new URLSearchParams(window.location.search);
 const noteId = params.get("id");
-
-const titleInput = document.getElementById("note-title");
-const bodyInput = document.getElementById("note-body");
-const saveStatus = document.getElementById("save-status");
-const deleteButton = document.getElementById("delete-note");
-
 const HOME_URL = "https://bradleysoucier1.github.io/WindowsNotes/";
+
+const editor = document.getElementById("editor");
+const windowTitle = document.getElementById("window-title");
+const encoding = document.getElementById("encoding");
 
 let noteRef;
 let saveTimer;
+let currentTitle = "Untitled";
 
 function setStatus(text, isError = false) {
-  saveStatus.textContent = text;
-  saveStatus.classList.toggle("error", isError);
+  encoding.textContent = text;
+  encoding.style.color = isError ? "#b00020" : "";
+}
+
+function deriveTitle(value) {
+  const firstLine = value.split("\n").find((line) => line.trim().length > 0);
+  return firstLine ? firstLine.trim().slice(0, 60) : "Untitled";
+}
+
+function syncWindowTitle() {
+  windowTitle.textContent = `${currentTitle} - Notepad`;
 }
 
 async function saveNote() {
   if (!noteRef) return;
 
+  currentTitle = deriveTitle(editor.value);
+  syncWindowTitle();
+
   try {
     await updateDoc(noteRef, {
-      title: titleInput.value,
-      body: bodyInput.value,
+      title: currentTitle,
+      body: editor.value,
       updatedAt: serverTimestamp(),
     });
-    setStatus(`Saved at ${new Date().toLocaleTimeString()}`);
+    setStatus(`Synced ${new Date().toLocaleTimeString()}`);
   } catch {
-    setStatus("Save failed", true);
+    setStatus("Sync failed", true);
   }
 }
 
 function queueSave() {
   clearTimeout(saveTimer);
-  setStatus("Saving...");
+  setStatus("Syncing...");
   saveTimer = setTimeout(saveNote, 350);
 }
 
@@ -58,23 +63,38 @@ onAuthStateChanged(auth, async (user) => {
 
   if (!snapshot.exists()) {
     setStatus("Note not found", true);
-    deleteButton.disabled = true;
     return;
   }
 
   const note = snapshot.data();
-  titleInput.value = note.title || "";
-  bodyInput.value = note.body || "";
-  setStatus("Loaded");
+  editor.value = note.body || "";
+  currentTitle = note.title || deriveTitle(editor.value);
+  syncWindowTitle();
+  setStatus("UTF-8");
 });
 
-titleInput.addEventListener("input", queueSave);
-bodyInput.addEventListener("input", queueSave);
+editor.addEventListener("input", queueSave);
 
-deleteButton.addEventListener("click", async () => {
-  if (!noteRef) return;
-  if (!confirm("Delete this note permanently?")) return;
+window.addEventListener("beforeunload", () => {
+  if (saveTimer) {
+    clearTimeout(saveTimer);
+    saveNote();
+  }
+});
 
-  await deleteDoc(noteRef);
-  window.location.href = HOME_URL;
+window.addEventListener("keydown", async (event) => {
+  if (!event.ctrlKey) return;
+
+  if (event.key.toLowerCase() === "d") {
+    event.preventDefault();
+    if (!noteRef) return;
+    if (!confirm("Delete this note permanently?")) return;
+    await deleteDoc(noteRef);
+    window.location.href = HOME_URL;
+  }
+
+  if (event.key.toLowerCase() === "b") {
+    event.preventDefault();
+    window.location.href = HOME_URL;
+  }
 });
